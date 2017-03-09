@@ -1,0 +1,119 @@
+
+
+ReadSector:
+push cx
+push ax
+push dx
+push bx
+
+mov bl,18
+div bl
+
+mov ch,al
+shr ch,1
+
+mov dh,al
+and dh,1
+
+inc ah
+mov al,ah
+xchg cl,al
+
+mov ah,2h
+mov dl,0
+pop bx
+int 13h
+pop dx
+pop ax
+pop cx
+ret
+
+
+atm7:
+push ax
+push es
+push bp
+push cx
+push bx
+push dx
+
+mov bp,ax
+mov ax,ds
+mov es,ax
+mov	cx, 20	
+mov	ax, 01301h		
+mov	bx, 0007h		
+mov dl,0
+int	10h			
+pop dx
+pop bx
+pop cx
+pop bp
+pop es
+pop ax
+ret
+
+
+GetNextFat:
+push bx
+push cx
+push dx
+push es
+mov dx,0
+shr ax,1
+jnb isnoteven
+mov dx,1
+isnoteven:
+mov bl,3
+mul bl
+cmp dx,0
+jz isnoteven2
+inc ax
+isnoteven2:
+
+push dx
+mov dx,0
+mov bx,512
+div bx
+inc ax
+mov bx,9000h
+mov es,bx
+mov bx,0
+mov cl,2
+call ReadSector
+
+
+mov bx,ax
+add bx,dx
+mov word ax,[es:bx-1]
+pop dx
+cmp dx,0
+jz iseven
+
+shr ax,4
+jmp getnextfatret
+iseven:
+
+and ax,0000111111111111b
+getnextfatret:
+pop es
+pop dx
+pop cx
+pop bx
+ret
+
+CleanScreen:
+push ax
+push bx
+push cx
+push dx
+mov	ax, 0600h		
+mov	bx, 0700h		
+mov	cx, 0			
+mov	dx, 0184fh		
+int	10h			
+pop dx
+pop cx
+pop bx
+pop ax
+ret

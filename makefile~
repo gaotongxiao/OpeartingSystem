@@ -1,0 +1,34 @@
+ENTOCN= ./entocn $< set.ini include
+ASM=nasm -i temp/ -o $@ temp/$<
+TARGET=loader.bin kernel.bin
+
+.PHONY:everything clean all img
+
+img:	clean everything 
+	dd if=boot.bin of=a.img bs=512 conv=notrunc count=1
+	sudo mount -o loop a.img /mnt/
+	sudo cp $(TARGET) /mnt/
+	sudo umount /mnt/
+	sudo cp a.img /home/gt/a.img
+
+everything:boot.bin $(TARGET)
+
+clean:
+	rm -f $(TARGET)
+
+all:clean everything
+
+
+
+boot.bin:boot.asm include/function.inc
+	$(ENTOCN)
+	$(ASM)
+
+loader.bin:loader.asm include/function.inc
+	$(ENTOCN)
+	$(ASM)
+
+kernel.bin:kernel.asm include/function.inc
+	$(ENTOCN)
+	nasm -f elf -i temp/ -o kernel.o temp/$<
+	ld -s -Ttext 0x30400 -o kernel.bin kernel.o

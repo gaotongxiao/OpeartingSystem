@@ -1,0 +1,153 @@
+%include "pm.inc"
+org 0100h
+jmp start
+
+[SECTION gdt]
+gdt:Descriptor 0,0,0
+gdtcode:Descriptor 0,codelen-1,DA_C+DA_32
+gdtdata:Descriptor 0,datalen-1,DA_DRW
+gdtvideo:Descriptor 0b8000h,0ffffh,DA_DRW
+gdtpde:Descriptor 200000h,4095,DA_DRW
+gdtpte:Descriptor 201000h,1023,DA_DRW|DA_LIMIT_4K
+gdtlen equ $-gdt
+gdtptr	dw gdtlen-1
+	dd 0
+
+;选择子
+sc equ gdtcode-gdt
+sd equ gdtdata-gdt
+sv equ gdtvideo-gdt
+spde equ gdtpde-gdt
+spte equ gdtpte-gdt
+
+[SECTION data]
+labeldata:
+_memory:
+times 512 db 0
+_number dd 0
+number equ _number-$$
+memory equ _memory-$$
+datalen equ $-labeldata
+
+[SECTION 16]
+[BITS 16]
+start:
+	mov ax,cs
+	mov ds,ax
+	mov es,ax
+	;获取内存信息
+	mov ebx,0
+	mov di,_memory
+.loop:
+	mov eax,0e820h
+	mov ecx,20
+
+	mov edx,0534d4150h
+	int 15h
+	jc shit
+	add di,20
+	inc dword [_number]
+	cmp ebx,0
+	jne .loop
+	jmp goodjob
+shit:
+	mov dword [_number],0
+goodjob:
+	;获取完毕
+	;code
+	mov eax,0
+	mov ax,cs
+	shl eax,4
+	add eax,labelcode
+	mov word [gdtcode + 2], ax
+	shr eax, 16
+	mov byte [gdtcode + 4], al
+	mov byte [gdtcode + 7], ah
+
+	;data
+	mov eax,0
+	mov ax,cs
+	shl eax,4
+	add eax,labeldata
+	mov word [gdtdata + 2], ax
+	shr eax, 16
+	mov byte [gdtdata + 4], al
+	mov byte [gdtdata + 7], ah
+
+	;GDT
+	mov eax,0
+	mov ax,cs
+	shl eax,4
+	add ax,gdt
+	mov dword [gdtptr+2],eax
+	lgdt [gdtptr]
+
+	; 关中断
+	cli
+
+
+	; 打开地址线A20
+	in	al, 92h
+	or	al, 00000010b
+	out	92h, al
+
+
+
+	; 切换到保护模式
+	mov	eax, cr0
+	or	eax, 1
+	mov	cr0, eax
+
+
+	;华丽的跳转
+	jmp dword sc:0
+[SECTION 32]
+[BITS 32]
+labelcode:
+;获取内存大小
+	xchg bx,bx
+	mov ax,sd
+	mov ds,ax
+	mov es,ax
+	mov word ax,[number]
+	mov dx,0
+	mov bx,20
+	mul bx
+	mov di,ax
+	sub di,4
+check:	mov dword eax,[es:di]
+	cmp dword eax,1
+	jz ok
+	sub di,20
+	jmp check
+ok:	mov eax,0
+	xchg bx,bx
+	mov dword eax,[es:di-16]
+	add dword eax,[es:di-8]
+;现在eax是内存的大小,获取完毕
+	mov edx,0
+	mov ebx,400000h
+	div ebx
+	mov ecx,eax
+	mov edx,eax
+	mov ax,spde
+	mov es,ax
+	mov edi,0
+	mov eax,201000h|PG_P|PG_USU|PG_RWW
+	cmp dword edx,0
+	jnz startpage
+	inc dword ecx
+startpage:
+	stosd
+	add eax,4096
+	loop startpage
+;页目录表初始化完毕
+	mov ax,spte
+	mov es,ax
+	mov eax,edx
+	mov edx,0
+	mov ebx,1024
+	mul ebx
+	mov ecx,eax
+	
+codelen equ $-labelcode

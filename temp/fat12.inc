@@ -1,0 +1,19 @@
+atm68 db 'dijiaatm' 
+atm69 dw 512
+atm70 db 1 
+atm71 dw 1
+atm72 db 2
+atm73 dw 224
+atm74 dw 2880
+atm75 db 0xf0
+atm76 dw 9
+atm77 dw 18
+atm78 dw 2
+atm79 dd 0
+BPB_TotSec32 dd 0
+atm80 db 0
+no db 0
+atm81 db 29h
+atm82 dd 0
+atm83 db 'dijiaatm0.1'
+atm84 db 'FAT12   '
